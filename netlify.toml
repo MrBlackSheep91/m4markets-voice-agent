@@ -1,8 +1,13 @@
 [build]
   publish = "."
-  command = "echo 'No build needed - static site'"
+  command = ""
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF"
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# No instalar dependencias - es solo HTML estático
+[build.environment]
+  NODE_VERSION = "18"
