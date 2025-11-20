@@ -29,6 +29,7 @@ from utils.error_handler import (
     safe_execute_async,
     ErrorRecovery,
 )
+from utils.cost_metrics import metrics_tracker
 
 # Import tools
 from tools.knowledge_tools import query_m4markets_knowledge, get_account_comparison, get_regulation_info
@@ -40,7 +41,12 @@ logger = setup_logger("m4markets-agent")
 
 # Constants
 AGENT_NAME = "M4Markets Sales Agent"
-AGENT_VOICE = "alloy"
+
+# Voice configuration - Options: alloy, echo, fable, onyx, nova, shimmer
+# For lower latency: alloy, echo (faster), nova (clearer)
+# For more realistic: fable, shimmer (more expressive)
+AGENT_VOICE = os.getenv("AGENT_VOICE", "nova")  # nova is clear and fast
+VOICE_SPEED = float(os.getenv("VOICE_SPEED", "1.15"))  # 1.15x speed for lower latency
 
 
 def validate_environment():
@@ -276,12 +282,15 @@ current_lead_phone = None
 
 async def entrypoint(ctx: JobContext):
     """
-    Main entrypoint for LiveKit agent with robust error handling
+    Main entrypoint for LiveKit agent with robust error handling and cost tracking
     """
     global current_lead_phone
     call_id = f"call_{ctx.room.name}"
     start_time = asyncio.get_event_loop().time()
     outcome = "unknown"
+
+    # Start metrics tracking
+    call_metrics = metrics_tracker.start_call(call_id)
 
     try:
         logger.info(f"🚀 Starting voice agent for room: {ctx.room.name}")
@@ -340,13 +349,23 @@ async def entrypoint(ctx: JobContext):
             ],
         )
 
-        # Create AgentSession with STT, LLM, TTS, VAD
+        # Create AgentSession with optimized STT, LLM, TTS, VAD
         session = AgentSession(
             vad=silero.VAD.load(),
-            stt=openai.STT(),
-            llm=openai.LLM(model="gpt-4o-mini"),
-            tts=openai.TTS(voice=AGENT_VOICE),
+            stt=openai.STT(
+                language="es",  # Optimize for Spanish
+            ),
+            llm=openai.LLM(
+                model="gpt-4o-mini",
+                temperature=0.7,  # Slightly creative but focused
+            ),
+            tts=openai.TTS(
+                voice=AGENT_VOICE,
+                speed=VOICE_SPEED,  # Faster speech for lower latency
+            ),
         )
+
+        logger.info(f"✅ Session config: Voice={AGENT_VOICE}, Speed={VOICE_SPEED}x")
 
         logger.info("✅ Agent and Session created successfully")
 
@@ -391,6 +410,10 @@ async def entrypoint(ctx: JobContext):
     finally:
         # Log call completion
         duration = asyncio.get_event_loop().time() - start_time
+
+        # End metrics tracking and get final report
+        final_metrics = metrics_tracker.end_call(call_id)
+
         if current_lead_phone:
             log_call_ended(
                 logger,
@@ -399,7 +422,16 @@ async def entrypoint(ctx: JobContext):
                 duration,
                 outcome
             )
+
         logger.info(f"✨ Call completed. Duration: {duration:.2f}s | Outcome: {outcome}")
+
+        # Log cost summary
+        if final_metrics:
+            logger.info(
+                f"💰 Cost: ${final_metrics['total']:.4f} "
+                f"(${final_metrics['cost_per_minute']:.4f}/min) | "
+                f"Tools: {final_metrics['usage']['tool_calls']}"
+            )
 
 
 if __name__ == "__main__":
