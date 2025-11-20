@@ -8,7 +8,6 @@ import time
 import logging
 from typing import Dict, Optional, List
 from langfuse import Langfuse
-from langfuse.decorators import observe, langfuse_context
 from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
