@@ -64,15 +64,15 @@ def generate_link(client_name: str, use_localhost: bool = False, language: str =
     print(f"Idioma: {language.upper()}")
     print(f"Modo: {mode.upper()}")
     print(f"LiveKit URL: {LIVEKIT_URL}")
-    print(f"\n🔗 ENVÍA ESTE LINK AL CLIENTE:\n")
+    print(f"\n>>> ENVIA ESTE LINK AL CLIENTE:\n")
     print(f"   {client_url}")
     print("\n" + "="*80)
-    print("\n📋 INSTRUCCIONES PARA EL CLIENTE:")
+    print("\n>>> INSTRUCCIONES PARA EL CLIENTE:")
     print("   1. Abrir el link en Chrome, Firefox o Safari")
-    print("   2. Permitir acceso al micrófono cuando lo solicite")
+    print("   2. Permitir acceso al microfono cuando lo solicite")
     print("   3. Click en 'Unirse a la llamada'")
     print("   4. Esperar a que Maicol (el agente) se una")
-    print("\n💡 PARA INICIAR EL AGENTE:")
+    print("\n>>> PARA INICIAR EL AGENTE:")
     print("   cd voice-m4markets-agent")
     print("   python voice_agent_simple.py dev")
     print("\n" + "="*80 + "\n")
@@ -90,10 +90,10 @@ if __name__ == "__main__":
         client_name = "Cliente Demo"
 
     # Link en español, página completa (producción)
-    print("\n🌐 LINK DE PRODUCCIÓN (Netlify):")
+    print("\n>>> LINK DE PRODUCCION (Netlify):")
     generate_link(client_name, use_localhost=False, language="es", mode="full")
 
-    # Link en inglés para Sam
+    # Link en ingles para Sam
     # generate_link("Sam Johnson", use_localhost=False, language="en", mode="full")
 
     # Link con widget flotante

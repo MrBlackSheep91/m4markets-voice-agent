@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M4Markets - Voice Assistant</title>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --m4-green: #91c13e;
+            --m4-blue: #6fc7e1;
+            --m4-dark: #32373c;
+            --m4-yellow: #fdc44f;
+            --m4-light: #f5f5f5;
+            --m4-white: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, var(--m4-dark) 0%, #1a1d21 100%);
+            color: var(--m4-white);
+        }
+
+        /* Full Page Mode */
+        .full-page-mode {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(50, 55, 60, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 48px;
+            max-width: 700px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(145, 193, 62, 0.2);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo-text {
+            font-size: 3.5em;
+            font-weight: 800;
+            letter-spacing: 3px;
+            background: linear-gradient(135deg, var(--m4-green), var(--m4-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 12px;
+            text-align: center;
+            font-weight: 700;
+            color: var(--m4-white);
+        }
+
+        .subtitle {
+            text-align: center;
+            opacity: 0.85;
+            margin-bottom: 36px;
+            font-size: 1.15em;
+            color: var(--m4-blue);
+        }
+
+        button {
+            width: 100%;
+            background: linear-gradient(135deg, var(--m4-green) 0%, #7ea832 100%);
+            color: white;
+            border: none;
+            padding: 20px 32px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            margin: 12px 0;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0 4px 20px rgba(145, 193, 62, 0.4);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(145, 193, 62, 0.6);
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            opacity: 0.6;
+        }
+
+        .disconnect {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            box-shadow: 0 4px 20px rgba(231, 76, 60, 0.4);
+        }
+
+        .disconnect:hover {
+            box-shadow: 0 8px 30px rgba(231, 76, 60, 0.6);
+        }
+
+        #status {
+            margin: 28px 0;
+            padding: 24px;
+            background: rgba(111, 199, 225, 0.1);
+            border-radius: 12px;
+            min-height: 80px;
+            font-size: 16px;
+            text-align: center;
+            line-height: 1.6;
+            border-left: 4px solid var(--m4-green);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .status-icon {
+            flex-shrink: 0;
+        }
+
+        .info {
+            margin-top: 32px;
+            padding: 28px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            font-size: 15px;
+            line-height: 1.8;
+        }
+
+        .info h3 {
+            margin-bottom: 16px;
+            font-size: 1.3em;
+            color: var(--m4-green);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info li {
+            padding: 10px 0;
+            padding-left: 32px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .info li i {
+            position: absolute;
+            left: 0;
+            color: var(--m4-green);
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .error {
+            background: rgba(231, 76, 60, 0.2);
+            border-left: 4px solid #e74c3c;
+        }
+
+        .success {
+            border-left: 4px solid var(--m4-green);
+        }
+
+        .footer {
+            margin-top: 32px;
+            text-align: center;
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+
+        .footer a {
+            color: var(--m4-green);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer a:hover {
+            color: var(--m4-blue);
+        }
+
+        /* Widget Mode */
+        .widget-mode {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            z-index: 9999;
+        }
+
+        .widget-button {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--m4-green), #7ea832);
+            box-shadow: 0 8px 24px rgba(145, 193, 62, 0.5);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 10000;
+        }
+
+        .widget-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 32px rgba(145, 193, 62, 0.7);
+        }
+
+        .widget-button i {
+            color: white;
+        }
+
+        .widget-panel {
+            position: fixed;
+            bottom: 100px;
+            right: 24px;
+            width: 400px;
+            max-height: 600px;
+            background: var(--m4-dark);
+            border-radius: 16px;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(145, 193, 62, 0.3);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 9999;
+        }
+
+        .widget-panel.active {
+            display: flex;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .widget-header {
+            padding: 20px;
+            background: linear-gradient(135deg, var(--m4-green), #7ea832);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .widget-header h3 {
+            margin: 0;
+            font-size: 1.2em;
+            color: white;
+        }
+
+        .widget-close {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 4px;
+            width: auto;
+            margin: 0;
+            box-shadow: none;
+        }
+
+        .widget-close:hover {
+            opacity: 0.8;
+            transform: none;
+        }
+
+        .widget-body {
+            padding: 24px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .widget-body button {
+            width: 100%;
+            margin: 8px 0;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 32px 24px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .widget-panel {
+                width: calc(100vw - 48px);
+                right: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Full Page Mode Container -->
+    <div id="fullPageContainer" class="full-page-mode">
+        <div class="container">
+            <div class="logo">
+                <div class="logo-text">M4MARKETS</div>
+            </div>
+            <h1 id="pageTitle">Voice Assistant</h1>
+            <p class="subtitle" id="pageSubtitle">Your Forex & CFDs Expert</p>
+
+            <button id="connectBtn">
+                <i data-lucide="phone-call"></i>
+                <span id="connectBtnText">Join Call</span>
+            </button>
+            <button id="disconnectBtn" class="disconnect" disabled>
+                <i data-lucide="phone-off"></i>
+                <span id="disconnectBtnText">Hang Up</span>
+            </button>
+
+            <div id="status" class="success">
+                <i class="status-icon" data-lucide="check-circle"></i>
+                <span id="statusText">Ready to connect...</span>
+            </div>
+
+            <div class="info">
+                <h3>
+                    <i data-lucide="info"></i>
+                    <span id="infoTitle">About this call:</span>
+                </h3>
+                <ul id="infoList">
+                    <li>
+                        <i data-lucide="check"></i>
+                        <span>Talk with our specialized Forex assistant</span>
+                    </li>
+                    <li>
+                        <i data-lucide="check"></i>
+                        <span>Learn about accounts from $5 USD with spreads from 0.0 pips</span>
+                    </li>
+                    <li>
+                        <i data-lucide="check"></i>
+                        <span>Duration: 3-5 minutes</span>
+                    </li>
+                    <li>
+                        <i data-lucide="check"></i>
+                        <span>Completely free and no commitment</span>
+                    </li>
+                </ul>
+                <p style="margin-top: 24px; font-weight: 600; display: flex; align-items: center; gap: 12px;">
+                    <i data-lucide="mic"></i>
+                    <strong id="micNote">Important:</strong>
+                    <span id="micText">Allow microphone access when prompted by your browser.</span>
+                </p>
+            </div>
+
+            <div class="footer">
+                Powered by M4Markets | <a href="https://m4markets.com" target="_blank">m4markets.com</a>
+            </div>
+
+            <div id="audioContainer"></div>
+        </div>
+    </div>
+
+    <!-- Widget Mode -->
+    <div id="widgetContainer" class="widget-mode" style="display: none;">
+        <button class="widget-button" id="widgetToggle" title="Talk to M4Markets">
+            <i data-lucide="phone"></i>
+        </button>
+
+        <div class="widget-panel" id="widgetPanel">
+            <div class="widget-header">
+                <h3 id="widgetTitle">M4Markets Voice</h3>
+                <button class="widget-close" id="widgetClose">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="widget-body">
+                <button id="widgetConnectBtn">
+                    <i data-lucide="phone-call"></i>
+                    <span id="widgetConnectBtnText">Join Call</span>
+                </button>
+                <button id="widgetDisconnectBtn" class="disconnect" disabled>
+                    <i data-lucide="phone-off"></i>
+                    <span id="widgetDisconnectBtnText">Hang Up</span>
+                </button>
+                <div id="widgetStatus" class="success" style="margin-top: 16px;">
+                    <i class="status-icon" data-lucide="check-circle"></i>
+                    <span id="widgetStatusText">Ready to connect...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Room, createLocalAudioTrack } from 'https://esm.sh/livekit-client';
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const TOKEN = urlParams.get('token');
+        const ROOM_NAME = urlParams.get('room');
+        const LIVEKIT_URL = urlParams.get('livekit_url') || 'wss://innovateam-2onbh9x3.livekit.cloud';
+        const MODE = urlParams.get('mode') || 'full'; // 'full' or 'widget'
+        const LANG = urlParams.get('lang') || 'es'; // 'es' or 'en'
+
+        // Translations
+        const translations = {
+            en: {
+                pageTitle: 'Voice Assistant',
+                pageSubtitle: 'Your Forex & CFDs Expert',
+                connectBtn: 'Join Call',
+                disconnectBtn: 'Hang Up',
+                statusReady: 'Ready to connect...',
+                statusConnecting: 'Connecting to M4Markets...',
+                statusWaiting: 'Please wait...',
+                statusConnected: 'Connected!',
+                statusInCall: 'In call with M4Markets!',
+                statusAgent: 'M4Markets Assistant connected!',
+                statusAudio: 'Preparing audio...',
+                statusMic: 'Requesting microphone access...',
+                statusAllow: 'Please allow access',
+                statusEnded: 'Call ended. Thank you!',
+                statusError: 'Error:',
+                statusInvalidLink: 'Invalid link',
+                statusInvalidMsg: 'This link is not valid. Contact M4Markets support.',
+                statusMicError: 'You must allow microphone access to continue',
+                statusCheckPerms: 'Check browser permissions or contact support',
+                infoTitle: 'About this call:',
+                infoPoint1: 'Talk with our specialized Forex assistant',
+                infoPoint2: 'Learn about accounts from $5 USD with spreads from 0.0 pips',
+                infoPoint3: 'Duration: 3-5 minutes',
+                infoPoint4: 'Completely free and no commitment',
+                micNote: 'Important:',
+                micText: 'Allow microphone access when prompted by your browser.',
+                widgetTitle: 'M4Markets Voice'
+            },
+            es: {
+                pageTitle: 'Asistente de Voz',
+                pageSubtitle: 'Tu experto en Forex & CFDs',
+                connectBtn: 'Unirse a la llamada',
+                disconnectBtn: 'Colgar',
+                statusReady: 'Listo para conectar...',
+                statusConnecting: 'Conectando a M4Markets...',
+                statusWaiting: 'Por favor espera...',
+                statusConnected: '¡Conectado!',
+                statusInCall: '¡En llamada con M4Markets!',
+                statusAgent: '¡Asistente M4Markets conectado!',
+                statusAudio: 'Preparando audio...',
+                statusMic: 'Solicitando acceso al micrófono...',
+                statusAllow: 'Por favor permite el acceso',
+                statusEnded: 'Llamada finalizada. ¡Gracias!',
+                statusError: 'Error:',
+                statusInvalidLink: 'Link inválido',
+                statusInvalidMsg: 'Este enlace no es válido. Contacta con soporte de M4Markets.',
+                statusMicError: 'Debes permitir el acceso al micrófono para continuar',
+                statusCheckPerms: 'Revisa los permisos del navegador o contacta soporte',
+                infoTitle: 'Sobre esta llamada:',
+                infoPoint1: 'Hablarás con nuestro asistente especializado en Forex',
+                infoPoint2: 'Conocerás nuestras cuentas desde $5 USD con spreads desde 0.0 pips',
+                infoPoint3: 'Duración: 3-5 minutos',
+                infoPoint4: 'Completamente gratis y sin compromiso',
+                micNote: 'Importante:',
+                micText: 'Permite el acceso al micrófono cuando te lo solicite el navegador.',
+                widgetTitle: 'Voz M4Markets'
+            }
+        };
+
+        const t = translations[LANG];
+
+        // Apply translations
+        document.getElementById('pageTitle').textContent = t.pageTitle;
+        document.getElementById('pageSubtitle').textContent = t.pageSubtitle;
+        document.getElementById('connectBtnText').textContent = t.connectBtn;
+        document.getElementById('disconnectBtnText').textContent = t.disconnectBtn;
+        document.getElementById('widgetConnectBtnText').textContent = t.connectBtn;
+        document.getElementById('widgetDisconnectBtnText').textContent = t.disconnectBtn;
+        document.getElementById('statusText').textContent = t.statusReady;
+        document.getElementById('widgetStatusText').textContent = t.statusReady;
+        document.getElementById('infoTitle').textContent = t.infoTitle;
+        document.getElementById('micNote').textContent = t.micNote;
+        document.getElementById('micText').textContent = t.micText;
+        document.getElementById('widgetTitle').textContent = t.widgetTitle;
+
+        const infoList = document.getElementById('infoList');
+        infoList.innerHTML = `
+            <li><i data-lucide="check"></i><span>${t.infoPoint1}</span></li>
+            <li><i data-lucide="check"></i><span>${t.infoPoint2}</span></li>
+            <li><i data-lucide="check"></i><span>${t.infoPoint3}</span></li>
+            <li><i data-lucide="check"></i><span>${t.infoPoint4}</span></li>
+        `;
+        lucide.createIcons();
+
+        // Toggle mode
+        if (MODE === 'widget') {
+            document.getElementById('fullPageContainer').style.display = 'none';
+            document.getElementById('widgetContainer').style.display = 'block';
+        }
+
+        // Widget toggle
+        const widgetToggle = document.getElementById('widgetToggle');
+        const widgetPanel = document.getElementById('widgetPanel');
+        const widgetClose = document.getElementById('widgetClose');
+
+        widgetToggle?.addEventListener('click', () => {
+            widgetPanel.classList.toggle('active');
+            lucide.createIcons();
+        });
+
+        widgetClose?.addEventListener('click', () => {
+            widgetPanel.classList.remove('active');
+        });
+
+        // LiveKit connection
+        let room = null;
+        let localAudioTrack = null;
+
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const status = document.getElementById('status');
+        const widgetConnectBtn = document.getElementById('widgetConnectBtn');
+        const widgetDisconnectBtn = document.getElementById('widgetDisconnectBtn');
+        const widgetStatus = document.getElementById('widgetStatus');
+
+        // Validate parameters
+        if (!TOKEN || !ROOM_NAME) {
+            const errorMsg = `<i class="status-icon" data-lucide="x-circle"></i><span>${t.statusError} ${t.statusInvalidLink}<br><small>${t.statusInvalidMsg}</small></span>`;
+            status.innerHTML = errorMsg;
+            if (widgetStatus) widgetStatus.innerHTML = errorMsg;
+            status.classList.remove('success');
+            status.classList.add('error');
+            if (widgetStatus) {
+                widgetStatus.classList.remove('success');
+                widgetStatus.classList.add('error');
+            }
+            connectBtn.disabled = true;
+            if (widgetConnectBtn) widgetConnectBtn.disabled = true;
+            lucide.createIcons();
+        } else {
+            console.log('✅ M4Markets Voice Call - Parameters loaded:', { ROOM_NAME, LIVEKIT_URL, LANG, MODE });
+        }
+
+        async function connect() {
+            try {
+                const updateStatus = (msg) => {
+                    status.innerHTML = msg;
+                    if (widgetStatus) widgetStatus.innerHTML = msg;
+                    lucide.createIcons();
+                };
+
+                updateStatus(`<i class="status-icon pulse" data-lucide="loader"></i><span>${t.statusConnecting}<br><small class="pulse">${t.statusWaiting}</small></span>`);
+                status.classList.remove('error');
+                status.classList.add('success');
+                if (widgetStatus) {
+                    widgetStatus.classList.remove('error');
+                    widgetStatus.classList.add('success');
+                }
+                connectBtn.disabled = true;
+                if (widgetConnectBtn) widgetConnectBtn.disabled = true;
+
+                console.log('Creating room...');
+
+                // Create room
+                room = new Room({
+                    adaptiveStream: true,
+                    dynacast: true,
+                });
+
+                console.log('Room created:', room);
+
+                // Event handlers
+                room.on('participantConnected', (participant) => {
+                    console.log('✅ Participant connected:', participant.identity);
+                    if (participant.identity.includes('agent') || participant.identity.includes('m4markets')) {
+                        updateStatus(`<i class="status-icon" data-lucide="user-check"></i><span>${t.statusAgent}<br><small>${t.statusAudio}</small></span>`);
+                    }
+                });
+
+                room.on('trackSubscribed', (track, publication, participant) => {
+                    console.log('🎵 Track subscribed:', track.kind, 'from', participant.identity);
+
+                    if (track.kind === 'audio') {
+                        const audioElement = track.attach();
+                        document.getElementById('audioContainer').appendChild(audioElement);
+                        audioElement.play();
+
+                        updateStatus(`<i class="status-icon" data-lucide="volume-2"></i><span>${t.statusInCall}<br><small class="pulse">${t.statusAgent.split('!')[0]}</small></span>`);
+                        console.log('🔊 Audio element attached and playing');
+                    }
+                });
+
+                room.on('trackUnsubscribed', (track) => {
+                    console.log('Track unsubscribed:', track.kind);
+                    track.detach();
+                });
+
+                room.on('disconnected', () => {
+                    console.log('Disconnected from room');
+                    updateStatus(`<i class="status-icon" data-lucide="check-circle"></i><span>${t.statusEnded}</span>`);
+                    status.classList.remove('error');
+                    status.classList.add('success');
+                    if (widgetStatus) {
+                        widgetStatus.classList.remove('error');
+                        widgetStatus.classList.add('success');
+                    }
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    if (widgetConnectBtn) widgetConnectBtn.disabled = false;
+                    if (widgetDisconnectBtn) widgetDisconnectBtn.disabled = true;
+                    lucide.createIcons();
+                });
+
+                // Connect to room
+                console.log('Connecting to:', LIVEKIT_URL);
+                await room.connect(LIVEKIT_URL, TOKEN);
+                console.log('✅ Connected to room');
+
+                updateStatus(`<i class="status-icon pulse" data-lucide="mic"></i><span>${t.statusMic}<br><small>${t.statusAllow}</small></span>`);
+
+                // Request microphone and publish local audio
+                localAudioTrack = await createLocalAudioTrack();
+                await room.localParticipant.publishTrack(localAudioTrack);
+                console.log('✅ Local audio track published');
+
+                updateStatus(`<i class="status-icon pulse" data-lucide="phone-call"></i><span>${t.statusConnected}<br><small class="pulse">${t.statusInCall.split('!')[0]}...</small></span>`);
+                disconnectBtn.disabled = false;
+                if (widgetDisconnectBtn) widgetDisconnectBtn.disabled = false;
+
+            } catch (error) {
+                console.error('❌ Error conectando:', error);
+
+                let errorMsg = error.message;
+                if (error.message.includes('NotAllowedError') || error.message.includes('Permission denied')) {
+                    errorMsg = t.statusMicError;
+                }
+
+                const errorHtml = `<i class="status-icon" data-lucide="alert-circle"></i><span>${t.statusError} ${errorMsg}<br><small>${t.statusCheckPerms}</small></span>`;
+                status.innerHTML = errorHtml;
+                if (widgetStatus) widgetStatus.innerHTML = errorHtml;
+                status.classList.remove('success');
+                status.classList.add('error');
+                if (widgetStatus) {
+                    widgetStatus.classList.remove('success');
+                    widgetStatus.classList.add('error');
+                }
+                connectBtn.disabled = false;
+                if (widgetConnectBtn) widgetConnectBtn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        async function disconnect() {
+            if (room) {
+                await room.disconnect();
+                room = null;
+            }
+
+            if (localAudioTrack) {
+                localAudioTrack.stop();
+                localAudioTrack = null;
+            }
+
+            const msg = `<i class="status-icon" data-lucide="check-circle"></i><span>${t.statusEnded}</span>`;
+            status.innerHTML = msg;
+            if (widgetStatus) widgetStatus.innerHTML = msg;
+            status.classList.remove('error');
+            status.classList.add('success');
+            if (widgetStatus) {
+                widgetStatus.classList.remove('error');
+                widgetStatus.classList.add('success');
+            }
+            connectBtn.disabled = false;
+            disconnectBtn.disabled = true;
+            if (widgetConnectBtn) widgetConnectBtn.disabled = false;
+            if (widgetDisconnectBtn) widgetDisconnectBtn.disabled = true;
+            lucide.createIcons();
+        }
+
+        connectBtn.addEventListener('click', connect);
+        disconnectBtn.addEventListener('click', disconnect);
+        if (widgetConnectBtn) widgetConnectBtn.addEventListener('click', connect);
+        if (widgetDisconnectBtn) widgetDisconnectBtn.addEventListener('click', disconnect);
+
+        console.log('🎤 M4Markets Voice Call Interface Ready');
+    </script>
+</body>
+</html>
