@@ -1,0 +1,136 @@
+# M4Markets Voice Agent Configuration
+
+company:
+  name: "M4Markets"
+  industry: "forex_trading"
+  website: "https://www.m4markets.com"
+
+agent:
+  name: "M4Markets Sales Agent"
+  language: "es"  # Spanish
+  voice: "alloy"  # OpenAI Realtime voice
+  model: "gpt-4o-realtime-preview"
+  temperature: 0.7
+
+  # Sales methodology
+  methodology: "SPIN"  # Situation, Problem, Implication, Need-Payoff
+
+  # Conversation stages
+  stages:
+    - name: "greeting"
+      duration_seconds: 10
+      objective: "Establish rapport and introduce M4Markets"
+
+    - name: "discovery"
+      duration_seconds: 60
+      objective: "Understand trading experience and needs"
+      questions:
+        - "¿Actualmente operás en Forex o CFDs?"
+        - "¿Qué broker usás hoy?"
+        - "¿Qué es lo más importante para vos en un broker?"
+
+    - name: "qualification"
+      duration_seconds: 30
+      objective: "Qualify lead based on capital and experience"
+      key_questions:
+        - "¿Tenés capital disponible para operar?"
+        - "¿Cuál es tu experiencia en trading?"
+
+    - name: "presentation"
+      duration_seconds: 40
+      objective: "Present M4Markets value proposition"
+
+    - name: "objection_handling"
+      duration_seconds: 30
+      objective: "Address concerns and objections"
+
+    - name: "closing"
+      duration_seconds: 20
+      objective: "Close or schedule callback"
+
+# Lead qualification criteria
+qualification:
+  hot:
+    score_min: 70
+    criteria:
+      - capital_min: 1000  # USD
+      - experience: ["intermedio", "avanzado"]
+      - urgency: "alta"
+    action: "immediate_handoff_to_human"
+
+  warm:
+    score_min: 40
+    criteria:
+      - capital_min: 200
+      - experience: ["principiante", "intermedio"]
+      - urgency: "media"
+    action: "schedule_callback"
+
+  cold:
+    score_min: 0
+    criteria:
+      - capital_min: 0
+    action: "whatsapp_followup"
+
+# Product information (basic, detailed info from knowledge base)
+products:
+  accounts:
+    - name: "Standard"
+      min_deposit: 5
+      spreads_from: 1.1
+      leverage_max: 1000
+      commission: 0
+      best_for: "Principiantes y operadores casuales"
+
+    - name: "Raw Spreads"
+      min_deposit: 100
+      spreads_from: 0.0
+      leverage_max: 500
+      commission: 3.5
+      best_for: "Traders activos que buscan spreads ultra bajos"
+
+    - name: "Premium"
+      min_deposit: 1000
+      spreads_from: 0.8
+      leverage_max: 1000
+      commission: 0
+      best_for: "Traders con capital significativo"
+
+    - name: "Dynamic Leverage"
+      min_deposit: 5
+      spreads_from: 0.0
+      leverage_max: 5000
+      commission: 0
+      best_for: "Traders que necesitan leverage flexible"
+
+# Objections and responses
+objections:
+  - objection: "ya_tengo_broker"
+    response: "Entiendo que ya operás con otro broker. ¿Qué te parecen los spreads y la ejecución que te dan? Porque M4Markets ofrece spreads desde 0.0 pips y ejecución en milisegundos."
+
+  - objection: "no_tengo_capital"
+    response: "No hay problema. M4Markets permite empezar desde $5 USD con nuestra cuenta Standard. También podés practicar con una cuenta demo gratuita hasta que estés listo."
+
+  - objection: "no_confio"
+    response: "Es totalmente válido ser cauteloso. M4Markets está regulado por CySEC en Europa y DFSA en Dubai. Además, los fondos de clientes están segregados en bancos tier 1."
+
+  - objection: "es_muy_complicado"
+    response: "Te entiendo. Por eso M4Markets ofrece soporte 24/7 en español y materiales educativos gratuitos. El proceso de apertura toma menos de 10 minutos."
+
+# Regulatory information
+regulation:
+  licenses:
+    - authority: "CySEC"
+      license: "301/16"
+      region: "Europa"
+    - authority: "DFSA"
+      license: "F007051"
+      region: "Dubai"
+    - authority: "FSA"
+      license: "SD047"
+      region: "Seychelles"
+
+  client_protection:
+    - "Fondos segregados en bancos tier 1"
+    - "Cobertura de hasta €20,000 por ICF"
+    - "Protección contra balance negativo"

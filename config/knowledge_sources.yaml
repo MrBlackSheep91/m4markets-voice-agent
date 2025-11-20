@@ -1,0 +1,90 @@
+# Knowledge Sources Configuration for M4Markets Agent
+
+knowledge_sources:
+  # Primary: Second Brain via MCP crawl4ai
+  - name: "m4markets_second_brain"
+    type: "vector_database"
+    provider: "chromadb_mcp"
+    enabled: true
+    priority: 1
+    description: "M4Markets documentation indexed in Second Brain (Railway ChromaDB)"
+
+    config:
+      collection: "maicol_docs"  # Same collection as other indexed docs
+      chroma_url: "http://chroma.railway.internal:8000"
+      filter_prefix: "m4markets"  # Filter results from M4Markets URLs
+
+    search_params:
+      n_results: 3  # Number of chunks to retrieve
+      relevance_threshold: 0.6  # Minimum similarity score
+
+    categories:
+      - name: "products"
+        keywords: ["cuenta", "account", "spreads", "comisiones", "leverage"]
+
+      - name: "regulation"
+        keywords: ["regulación", "CySEC", "DFSA", "FSA", "licencia"]
+
+      - name: "trading_conditions"
+        keywords: ["spreads", "ejecución", "plataforma", "MT4", "MT5"]
+
+      - name: "payments"
+        keywords: ["depósito", "retiro", "pago", "métodos"]
+
+      - name: "education"
+        keywords: ["forex", "CFD", "trading", "análisis", "estrategia"]
+
+  # Secondary: Static configuration knowledge (fallback)
+  - name: "static_config"
+    type: "yaml"
+    provider: "local"
+    enabled: true
+    priority: 2
+    description: "Static product and objection handling from config"
+
+    config:
+      file: "config/m4markets_config.yaml"
+      sections: ["products", "objections", "regulation"]
+
+# Knowledge retrieval strategy
+retrieval_strategy:
+  mode: "hybrid"  # Use both vector search and static config
+
+  steps:
+    1: "Query Second Brain for dynamic, detailed information"
+    2: "Fallback to static config if Second Brain returns low relevance"
+    3: "Combine both sources for comprehensive answers"
+
+  query_patterns:
+    # When to use Second Brain vs static config
+    second_brain_triggers:
+      - "spreads actuales"
+      - "condiciones específicas"
+      - "información detallada de cuenta"
+      - "plataformas disponibles"
+      - "métodos de pago"
+
+    static_config_triggers:
+      - "objeción común"
+      - "respuesta rápida"
+      - "información básica"
+
+# Query optimization
+optimization:
+  query_expansion: true  # Expand queries with synonyms
+  semantic_cache: true   # Cache frequent queries
+  max_query_time_ms: 500  # Max time for knowledge retrieval
+
+  synonyms:
+    cuenta: ["account", "tipo de cuenta"]
+    spreads: ["comisión", "costos", "fees"]
+    depósito: ["fondear", "depositar", "ingresar fondos"]
+    retiro: ["retirar", "withdrawal", "sacar fondos"]
+    regulación: ["licencia", "autorización", "supervisión"]
+
+# Logging and monitoring
+logging:
+  log_queries: true
+  log_results: true
+  track_relevance_scores: true
+  output_file: "logs/knowledge_queries.log"

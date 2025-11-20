@@ -1,0 +1,23 @@
+# M4Markets Voice Agent Dependencies
+
+# LiveKit Agents Framework
+livekit-agents>=0.8.0
+livekit-plugins-openai>=0.6.0
+livekit-plugins-silero>=0.6.0
+livekit-plugins-deepgram>=0.6.0
+
+# OpenAI
+openai>=1.0.0
+
+# Database
+asyncpg>=0.29.0
+
+# HTTP Client
+httpx>=0.25.0
+
+# Configuration
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+
+# Utilities
+python-dateutil>=2.8.2
