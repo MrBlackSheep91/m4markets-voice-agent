@@ -435,10 +435,10 @@
         // Initialize Lucide icons
         lucide.createIcons();
 
-        // Get URL parameters
+        // Get URL parameters with fallback to public demo room
         const urlParams = new URLSearchParams(window.location.search);
-        const TOKEN = urlParams.get('token');
-        const ROOM_NAME = urlParams.get('room');
+        const TOKEN = urlParams.get('token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiRGVtbyBHdWVzdCIsInZpZGVvIjp7InJvb21Kb2luIjp0cnVlLCJyb29tIjoibTRtYXJrZXRzLXB1YmxpYy1kZW1vIiwiY2FuUHVibGlzaCI6dHJ1ZSwiY2FuU3Vic2NyaWJlIjp0cnVlLCJjYW5QdWJsaXNoRGF0YSI6dHJ1ZX0sInN1YiI6ImRlbW8tZ3Vlc3QiLCJpc3MiOiJBUEljWkQyM0czenlBUVUiLCJuYmYiOjE3NjM2NDY5MjAsImV4cCI6MTc2NjIzODkyMH0.woSWHxM59LFz0OFM41zW1_o4EpmjsR6bhD0yt4NNOU4';
+        const ROOM_NAME = urlParams.get('room') || 'm4markets-public-demo';
         const LIVEKIT_URL = urlParams.get('livekit_url') || 'wss://innovateam-2onbh9x3.livekit.cloud';
         const MODE = urlParams.get('mode') || 'full'; // 'full' or 'widget'
         const LANG = urlParams.get('lang') || 'es'; // 'es' or 'en'
