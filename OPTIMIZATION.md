@@ -146,6 +146,147 @@ VOICE_SPEED=0.95
 
 ---
 
+## 📊 Langfuse Observability Integration
+
+### ¿Qué es Langfuse?
+
+Langfuse es una plataforma de observabilidad para aplicaciones LLM que te permite:
+- **Trackear costos en tiempo real** con precisión absoluta
+- **Ver traces completos** de cada conversación
+- **Analizar performance** de cada componente (STT, LLM, TTS)
+- **Detectar errores** y debugging avanzado
+- **Dashboards visuales** con métricas agregadas
+
+### Configuración
+
+1. **Crear cuenta en Langfuse**:
+   - Ve a https://cloud.langfuse.com
+   - Crea una cuenta gratuita
+   - Crea un nuevo proyecto "M4Markets Voice Agent"
+
+2. **Obtener API Keys**:
+   - En tu proyecto, ve a "Settings" → "API Keys"
+   - Copia `Public Key` y `Secret Key`
+
+3. **Configurar en Railway**:
+   ```bash
+   railway variables set LANGFUSE_PUBLIC_KEY=pk-lf-xxxxx
+   railway variables set LANGFUSE_SECRET_KEY=sk-lf-xxxxx
+   railway variables set LANGFUSE_HOST=https://cloud.langfuse.com
+   ```
+
+### Lo que Trackea Automáticamente
+
+Cada llamada genera un **trace** en Langfuse con:
+
+#### 📞 Trace Overview
+- **Session ID**: Identificador único de la llamada
+- **User ID**: Número de teléfono del lead
+- **Tags**: `m4markets`, `sales`, `voice`
+- **Metadata**:
+  - Room name
+  - Voice configurada (nova, alloy, etc.)
+  - Speed configurado (1.15x, etc.)
+  - Agent version
+
+#### 💰 Cost Breakdown
+Langfuse calcula costos exactos de:
+- **STT**: Tiempo de audio procesado ($0.006/min)
+- **LLM**: Tokens de entrada y salida (GPT-4o-mini)
+- **TTS**: Caracteres generados ($15/1M chars)
+- **Total**: Suma de todos los costos
+
+#### ⏱️ Performance Metrics
+- Duración total de la llamada
+- Outcome (completed, timeout, error)
+- Tool calls ejecutados
+- Cost per minute
+
+### Cómo Ver los Traces
+
+1. **Dashboard de Langfuse**:
+   - Login en https://cloud.langfuse.com
+   - Selecciona tu proyecto "M4Markets Voice Agent"
+   - Ve a "Traces" en el sidebar
+
+2. **Filtrar Traces**:
+   - Por fecha: últimas 24h, 7 días, etc.
+   - Por user_id: buscar por teléfono
+   - Por tags: `m4markets`, `sales`
+   - Por outcome: `completed`, `error`, `timeout`
+
+3. **Ver Detalles de un Trace**:
+   - Click en cualquier trace
+   - Verás timeline completa de la llamada
+   - Costos desglosados por componente
+   - Metadata y tags
+
+### Ejemplo de Trace
+
+```
+Trace: call_m4markets-1763670069
+├─ User: +54911234567
+├─ Duration: 5.2 minutes
+├─ Outcome: completed
+├─ Total Cost: $0.2145
+│
+├─ Metadata:
+│  ├─ room_name: m4markets-1763670069
+│  ├─ voice: nova
+│  ├─ speed: 1.15
+│  ├─ agent_version: v1.1.0
+│  ├─ stt_cost: $0.0314
+│  ├─ llm_cost: $0.1203
+│  ├─ tts_cost: $0.0628
+│  └─ tool_calls: 8
+│
+└─ Tags: m4markets, sales, voice
+```
+
+### Análisis Agregado
+
+En Langfuse puedes ver:
+
+1. **Cost por día/semana/mes**
+2. **Promedio de costo por llamada**
+3. **Distribución de outcomes** (% completadas vs errors)
+4. **Tool calls más usados**
+5. **Performance trends** (latencia mejorando/empeorando)
+
+### Debugging con Langfuse
+
+Cuando hay un error:
+
+1. **Busca el trace** por fecha/hora
+2. **Revisa el outcome**: `error`, `timeout`
+3. **Lee el metadata** para ver qué falló
+4. **Compara con traces exitosos** para encontrar diferencias
+
+### Ventajas vs Solo Logs
+
+| Feature | Logs de Railway | Langfuse |
+|---------|----------------|----------|
+| Costos exactos | ✅ Por llamada | ✅ Por llamada + agregados |
+| Timeline visual | ❌ | ✅ |
+| Filtros avanzados | ❌ | ✅ |
+| Dashboards | ❌ | ✅ |
+| Alertas | ❌ | ✅ Premium |
+| Retention | 7 días | 30 días (Free) |
+| Comparación entre llamadas | ❌ | ✅ |
+| Export de datos | ❌ | ✅ |
+
+### Próximos Pasos con Langfuse
+
+Una vez configurado, puedes:
+
+1. **Crear Dashboards personalizados**
+2. **Set up alertas** para llamadas caras (> $1.00)
+3. **Analizar conversiones** (% de HOT leads)
+4. **A/B testing** de diferentes voces/speeds
+5. **Tracking de revenue** (cuánto genera cada lead calificado)
+
+---
+
 ## 🔍 Monitoring & Debugging
 
 ### Ver Logs en Railway

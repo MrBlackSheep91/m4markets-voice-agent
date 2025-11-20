@@ -21,3 +21,4 @@ pyyaml>=6.0.1
 
 # Utilities
 python-dateutil>=2.8.2
+langfuse>=2.0.0

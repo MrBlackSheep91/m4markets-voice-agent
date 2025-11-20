@@ -30,6 +30,7 @@ from utils.error_handler import (
     ErrorRecovery,
 )
 from utils.cost_metrics import metrics_tracker
+from utils.langfuse_integration import VoiceCallTracer, init_langfuse
 
 # Import tools
 from tools.knowledge_tools import query_m4markets_knowledge, get_account_comparison, get_regulation_info
@@ -288,6 +289,7 @@ async def entrypoint(ctx: JobContext):
     call_id = f"call_{ctx.room.name}"
     start_time = asyncio.get_event_loop().time()
     outcome = "unknown"
+    langfuse_tracer = None
 
     # Start metrics tracking
     call_metrics = metrics_tracker.start_call(call_id)
@@ -319,6 +321,17 @@ async def entrypoint(ctx: JobContext):
                     log_call_started(logger, call_id, phone)
             except Exception as e:
                 logger.warning(f"Failed to extract phone from metadata: {str(e)}")
+
+        # Initialize Langfuse tracer
+        langfuse_tracer = VoiceCallTracer(call_id, current_lead_phone)
+        if langfuse_tracer.trace:
+            langfuse_tracer.set_metadata({
+                "room_name": ctx.room.name,
+                "voice": AGENT_VOICE,
+                "speed": VOICE_SPEED,
+                "agent_version": "v1.1.0"
+            })
+            langfuse_tracer.set_tags(["m4markets", "sales", "voice"])
 
         # Wait for participant
         logger.info("Waiting for participant...")
@@ -413,6 +426,23 @@ async def entrypoint(ctx: JobContext):
 
         # End metrics tracking and get final report
         final_metrics = metrics_tracker.end_call(call_id)
+
+        # End Langfuse trace with final metrics
+        if langfuse_tracer and langfuse_tracer.trace:
+            final_metadata = {
+                "duration_minutes": duration / 60,
+                "outcome": outcome,
+            }
+            if final_metrics:
+                final_metadata.update({
+                    "total_cost": final_metrics['total'],
+                    "cost_per_minute": final_metrics['cost_per_minute'],
+                    "tool_calls": final_metrics['usage']['tool_calls'],
+                    "stt_cost": final_metrics['stt'],
+                    "llm_cost": final_metrics['llm'],
+                    "tts_cost": final_metrics['tts'],
+                })
+            langfuse_tracer.end_trace(outcome, final_metadata)
 
         if current_lead_phone:
             log_call_ended(
