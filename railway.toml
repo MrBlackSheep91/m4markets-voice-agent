@@ -1,0 +1,38 @@
+# Railway Deployment Configuration for M4Markets Voice Agent
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "python voice_agent_m4markets.py dev"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# Health check configuration
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+
+# Resource configuration
+[deploy.resources]
+# Recommended resources for LiveKit voice agent
+# Adjust based on concurrent call load
+memoryLimit = "1Gi"
+cpuLimit = "1000m"
+
+# Environment variables (set these in Railway dashboard)
+# Required:
+# - DB_URL
+# - LIVEKIT_URL
+# - LIVEKIT_API_KEY
+# - LIVEKIT_API_SECRET
+# - OPENAI_API_KEY
+# - EVOLUTION_API_URL
+# - EVOLUTION_API_KEY
+# - EVOLUTION_INSTANCE_NAME
+# - FRONTEND_URL
+# - CHROMA_URL (if using ChromaDB MCP)
+
+# Optional:
+# - DEEPGRAM_API_KEY
+# - LOG_LEVEL (default: INFO)

@@ -6,6 +6,7 @@ LiveKit-based voice agent for M4Markets forex trading lead generation and qualif
 import asyncio
 import logging
 import os
+import sys
 from dotenv import load_dotenv
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm
 from livekit.agents.voice_assistant import VoiceAssistant
@@ -14,17 +15,55 @@ from livekit.plugins import openai, silero
 # Load environment variables
 load_dotenv()
 
+# Import utils for error handling and logging
+from utils.logger_config import setup_logger, log_call_started, log_call_ended, log_error_with_context
+from utils.error_handler import (
+    retry_with_backoff,
+    safe_execute_async,
+    ErrorRecovery,
+    protected_livekit_call
+)
+
 # Import tools
 from tools.knowledge_tools import query_m4markets_knowledge, get_account_comparison, get_regulation_info
 from tools.crm_tools import get_lead_history, save_conversation_note, qualify_and_save_lead, schedule_callback
 from tools.forex_tools import recommend_account_type, calculate_trading_costs, explain_forex_concept, get_market_hours_info
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("m4markets-agent")
+# Setup advanced logging
+logger = setup_logger("m4markets-agent")
 
 # Constants
 AGENT_NAME = "M4Markets Sales Agent"
 AGENT_VOICE = "alloy"
+
+
+def validate_environment():
+    """
+    Validate that all required environment variables are set
+    Exits with error if critical vars are missing
+    """
+    required_vars = {
+        "LIVEKIT_URL": "LiveKit server URL",
+        "LIVEKIT_API_KEY": "LiveKit API key",
+        "LIVEKIT_API_SECRET": "LiveKit API secret",
+        "OPENAI_API_KEY": "OpenAI API key",
+        "DB_URL": "Database connection URL",
+    }
+
+    missing_vars = []
+    for var, description in required_vars.items():
+        if not os.getenv(var):
+            missing_vars.append(f"  - {var}: {description}")
+            logger.error(f"Missing required environment variable: {var}")
+
+    if missing_vars:
+        logger.error("❌ Missing required environment variables:")
+        for var in missing_vars:
+            logger.error(var)
+        logger.error("\nPlease set these variables in your .env file")
+        sys.exit(1)
+
+    logger.info("✅ All required environment variables validated")
 
 
 # System Instructions for M4Markets Agent
@@ -311,42 +350,122 @@ class M4MarketsVoiceAgent:
         return fnc_ctx
 
     async def entrypoint(self, ctx: JobContext):
-        """Main entrypoint for LiveKit agent"""
-        initial_ctx = llm.ChatContext().append(
-            role="system",
-            text=M4MARKETS_INSTRUCTIONS
-        )
+        """
+        Main entrypoint for LiveKit agent with robust error handling
+        """
+        call_id = f"call_{ctx.room.name}_{asyncio.current_task().get_name()}"
+        start_time = asyncio.get_event_loop().time()
 
-        logger.info(f"Connecting to room: {ctx.room.name}")
-        await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
+        try:
+            logger.info(f"🚀 Starting voice agent for room: {ctx.room.name}")
 
-        # Create voice assistant
-        assistant = VoiceAssistant(
-            vad=silero.VAD.load(),
-            stt=openai.STT(),
-            llm=openai.LLM(model="gpt-4o-mini"),  # or gpt-4o-realtime-preview for voice
-            tts=openai.TTS(voice=AGENT_VOICE),
-            chat_ctx=initial_ctx,
-            fnc_ctx=self.create_function_context(),
-        )
+            # Validate environment before starting
+            validate_environment()
 
-        assistant.start(ctx.room)
+            # Initialize chat context
+            initial_ctx = llm.ChatContext().append(
+                role="system",
+                text=M4MARKETS_INSTRUCTIONS
+            )
 
-        # Wait for participant to publish audio
-        participant = await ctx.wait_for_participant()
-        logger.info(f"Participant joined: {participant.identity}")
+            # Connect to room with retry
+            logger.info(f"Connecting to room: {ctx.room.name}")
 
-        # Store phone number from room metadata if available
-        if hasattr(ctx.room, 'metadata'):
+            @retry_with_backoff(max_retries=3, initial_delay=2.0)
+            async def connect_to_room():
+                await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
+
+            await connect_to_room()
+            logger.info("✅ Successfully connected to LiveKit room")
+
+            # Create voice assistant
             try:
-                import json
-                metadata = json.loads(ctx.room.metadata)
-                self.current_lead_phone = metadata.get('phone')
-            except:
-                pass
+                assistant = VoiceAssistant(
+                    vad=silero.VAD.load(),
+                    stt=openai.STT(),
+                    llm=openai.LLM(model="gpt-4o-mini"),  # or gpt-4o-realtime-preview for voice
+                    tts=openai.TTS(voice=AGENT_VOICE),
+                    chat_ctx=initial_ctx,
+                    fnc_ctx=self.create_function_context(),
+                )
+                logger.info("✅ Voice assistant created successfully")
+            except Exception as e:
+                logger.error(f"Failed to create voice assistant: {str(e)}")
+                raise
 
-        # Greeting
-        await assistant.say("¡Hola! Soy el asistente virtual de M4Markets. ¿Con quién tengo el gusto de hablar?", allow_interruptions=True)
+            # Start assistant
+            assistant.start(ctx.room)
+            logger.info("✅ Voice assistant started")
+
+            # Wait for participant to publish audio
+            logger.info("Waiting for participant...")
+            participant = await asyncio.wait_for(
+                ctx.wait_for_participant(),
+                timeout=300  # 5 minute timeout
+            )
+            logger.info(f"✅ Participant joined: {participant.identity}")
+
+            # Extract phone number from room metadata
+            if hasattr(ctx.room, 'metadata') and ctx.room.metadata:
+                phone = await safe_execute_async(
+                    self._extract_phone_from_metadata,
+                    ctx.room.metadata,
+                    default_return=None,
+                    error_message="Failed to extract phone from metadata"
+                )
+                if phone:
+                    self.current_lead_phone = phone
+                    log_call_started(logger, call_id, phone)
+
+            # Greeting
+            greeting = "¡Hola! Soy el asistente virtual de M4Markets. ¿Con quién tengo el gusto de hablar?"
+            await assistant.say(greeting, allow_interruptions=True)
+            logger.info(f"Greeted participant with: {greeting}")
+
+            # Keep agent alive until disconnect
+            logger.info("Agent is now active and handling conversation")
+
+        except asyncio.TimeoutError:
+            logger.error("⏱️ Timeout waiting for participant to join")
+            log_error_with_context(
+                logger,
+                Exception("Participant join timeout"),
+                call_id=call_id
+            )
+
+        except Exception as e:
+            logger.error(f"❌ Fatal error in voice agent: {str(e)}", exc_info=True)
+            log_error_with_context(logger, e, call_id=call_id)
+
+            # Attempt graceful shutdown
+            try:
+                if hasattr(ctx, 'room') and ctx.room:
+                    logger.info("Attempting graceful disconnect...")
+                    await ctx.room.disconnect()
+            except Exception as disconnect_error:
+                logger.error(f"Error during graceful disconnect: {str(disconnect_error)}")
+
+            # Re-raise for upper-level handling
+            raise
+
+        finally:
+            # Log call completion
+            duration = asyncio.get_event_loop().time() - start_time
+            if self.current_lead_phone:
+                log_call_ended(
+                    logger,
+                    call_id,
+                    self.current_lead_phone,
+                    duration,
+                    outcome="completed" if not hasattr(sys.exc_info()[1], '__class__') else "error"
+                )
+            logger.info(f"✨ Call completed. Duration: {duration:.2f}s")
+
+    def _extract_phone_from_metadata(self, metadata_str: str) -> str:
+        """Extract phone number from room metadata JSON"""
+        import json
+        metadata = json.loads(metadata_str)
+        return metadata.get('phone') or metadata.get('lead_phone')
 
 
 async def main(worker_options: WorkerOptions):

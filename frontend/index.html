@@ -435,10 +435,10 @@
         // Initialize Lucide icons
         lucide.createIcons();
 
-        // Get URL parameters with fallback to public demo room
+        // Get URL parameters (NO fallback tokens - all must come from URL)
         const urlParams = new URLSearchParams(window.location.search);
-        const TOKEN = urlParams.get('token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiRGVtbyBHdWVzdCIsInZpZGVvIjp7InJvb21Kb2luIjp0cnVlLCJyb29tIjoibTRtYXJrZXRzLXB1YmxpYy1kZW1vIiwiY2FuUHVibGlzaCI6dHJ1ZSwiY2FuU3Vic2NyaWJlIjp0cnVlLCJjYW5QdWJsaXNoRGF0YSI6dHJ1ZX0sInN1YiI6ImRlbW8tZ3Vlc3QiLCJpc3MiOiJBUEljWkQyM0czenlBUVUiLCJuYmYiOjE3NjM2NDY5MjAsImV4cCI6MTc2NjIzODkyMH0.woSWHxM59LFz0OFM41zW1_o4EpmjsR6bhD0yt4NNOU4';
-        const ROOM_NAME = urlParams.get('room') || 'm4markets-public-demo';
+        const TOKEN = urlParams.get('token');
+        const ROOM_NAME = urlParams.get('room');
         const LIVEKIT_URL = urlParams.get('livekit_url') || 'wss://innovateam-2onbh9x3.livekit.cloud';
         const MODE = urlParams.get('mode') || 'full'; // 'full' or 'widget'
         const LANG = urlParams.get('lang') || 'es'; // 'es' or 'en'
@@ -561,9 +561,23 @@
         const widgetDisconnectBtn = document.getElementById('widgetDisconnectBtn');
         const widgetStatus = document.getElementById('widgetStatus');
 
-        // Validate parameters
+        // Validate parameters - STRICT validation (no fallbacks)
         if (!TOKEN || !ROOM_NAME) {
-            const errorMsg = `<i class="status-icon" data-lucide="x-circle"></i><span>${t.statusError} ${t.statusInvalidLink}<br><small>${t.statusInvalidMsg}</small></span>`;
+            console.error('❌ Missing required parameters:', {
+                hasToken: !!TOKEN,
+                hasRoom: !!ROOM_NAME,
+                url: window.location.href
+            });
+
+            const missingParams = [];
+            if (!TOKEN) missingParams.push('token');
+            if (!ROOM_NAME) missingParams.push('room');
+
+            const detailedError = LANG === 'es'
+                ? `Faltan parámetros requeridos: ${missingParams.join(', ')}`
+                : `Missing required parameters: ${missingParams.join(', ')}`;
+
+            const errorMsg = `<i class="status-icon" data-lucide="x-circle"></i><span>${t.statusError} ${t.statusInvalidLink}<br><small>${detailedError}<br>${t.statusInvalidMsg}</small></span>`;
             status.innerHTML = errorMsg;
             if (widgetStatus) widgetStatus.innerHTML = errorMsg;
             status.classList.remove('success');
@@ -576,7 +590,13 @@
             if (widgetConnectBtn) widgetConnectBtn.disabled = true;
             lucide.createIcons();
         } else {
-            console.log('✅ M4Markets Voice Call - Parameters loaded:', { ROOM_NAME, LIVEKIT_URL, LANG, MODE });
+            console.log('✅ M4Markets Voice Call - Parameters validated:', {
+                ROOM_NAME,
+                LIVEKIT_URL,
+                LANG,
+                MODE,
+                tokenLength: TOKEN.length
+            });
         }
 
         async function connect() {
@@ -649,9 +669,19 @@
                     lucide.createIcons();
                 });
 
-                // Connect to room
+                // Connect to room with timeout
                 console.log('Connecting to:', LIVEKIT_URL);
-                await room.connect(LIVEKIT_URL, TOKEN);
+
+                const connectWithTimeout = (timeout = 30000) => {
+                    return Promise.race([
+                        room.connect(LIVEKIT_URL, TOKEN),
+                        new Promise((_, reject) =>
+                            setTimeout(() => reject(new Error('Connection timeout - agent may not be running')), timeout)
+                        )
+                    ]);
+                };
+
+                await connectWithTimeout(30000); // 30 second timeout
                 console.log('✅ Connected to room');
 
                 updateStatus(`<i class="status-icon pulse" data-lucide="mic"></i><span>${t.statusMic}<br><small>${t.statusAllow}</small></span>`);
@@ -666,14 +696,41 @@
                 if (widgetDisconnectBtn) widgetDisconnectBtn.disabled = false;
 
             } catch (error) {
-                console.error('❌ Error conectando:', error);
+                console.error('❌ Connection error:', {
+                    message: error.message,
+                    type: error.name,
+                    stack: error.stack,
+                    token: TOKEN ? `${TOKEN.substring(0, 20)}...` : 'missing',
+                    room: ROOM_NAME,
+                    url: LIVEKIT_URL
+                });
 
                 let errorMsg = error.message;
+                let errorDetails = t.statusCheckPerms;
+
+                // Specific error handling
                 if (error.message.includes('NotAllowedError') || error.message.includes('Permission denied')) {
                     errorMsg = t.statusMicError;
+                    errorDetails = LANG === 'es'
+                        ? 'Revisa los permisos del navegador para el micrófono'
+                        : 'Check browser permissions for microphone';
+                } else if (error.message.includes('timeout')) {
+                    errorMsg = LANG === 'es'
+                        ? 'Tiempo de espera agotado - El agente puede no estar disponible'
+                        : 'Connection timeout - Agent may not be available';
+                    errorDetails = LANG === 'es'
+                        ? 'Por favor intenta nuevamente en unos momentos o contacta soporte'
+                        : 'Please try again in a few moments or contact support';
+                } else if (error.message.includes('token') || error.message.includes('unauthorized')) {
+                    errorMsg = LANG === 'es'
+                        ? 'Token inválido o expirado'
+                        : 'Invalid or expired token';
+                    errorDetails = LANG === 'es'
+                        ? 'Solicita un nuevo enlace de llamada'
+                        : 'Request a new call link';
                 }
 
-                const errorHtml = `<i class="status-icon" data-lucide="alert-circle"></i><span>${t.statusError} ${errorMsg}<br><small>${t.statusCheckPerms}</small></span>`;
+                const errorHtml = `<i class="status-icon" data-lucide="alert-circle"></i><span>${t.statusError} ${errorMsg}<br><small>${errorDetails}</small></span>`;
                 status.innerHTML = errorHtml;
                 if (widgetStatus) widgetStatus.innerHTML = errorHtml;
                 status.classList.remove('success');

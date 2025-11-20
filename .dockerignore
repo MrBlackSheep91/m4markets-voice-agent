@@ -1,0 +1,60 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Python cache
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment files (will be set via Railway env vars)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Documentation
+README.md
+QUICK_START.md
+DEMO_SUMMARY.md
+docs/
+
+# Frontend files (deployed separately on Netlify)
+frontend/
+*.html
+netlify.toml
+
+# Node modules (if any)
+node_modules/
+
+# Tests
+tests/
+pytest.ini
+.pytest_cache/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
