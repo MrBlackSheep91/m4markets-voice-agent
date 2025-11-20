@@ -30,13 +30,9 @@ RUN mkdir -p /app/logs
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Health check endpoint (will be created)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python health_check.py || exit 1
-
-# Expose port for health checks (optional HTTP endpoint)
-EXPOSE 8080
+# Note: No Docker HEALTHCHECK needed for LiveKit workers
+# The worker maintains connection to LiveKit server and auto-reconnects
 
 # Run the voice agent
-# Using 'dev' mode for now, can be changed to 'start' for production
+# Using 'dev' mode for live reloading during development
 CMD ["python", "voice_agent_m4markets.py", "dev"]
