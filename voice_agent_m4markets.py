@@ -322,16 +322,20 @@ async def entrypoint(ctx: JobContext):
             except Exception as e:
                 logger.warning(f"Failed to extract phone from metadata: {str(e)}")
 
-        # Initialize Langfuse tracer
-        langfuse_tracer = VoiceCallTracer(call_id, current_lead_phone)
-        if langfuse_tracer.trace:
-            langfuse_tracer.set_metadata({
-                "room_name": ctx.room.name,
-                "voice": AGENT_VOICE,
-                "speed": VOICE_SPEED,
-                "agent_version": "v1.1.0"
-            })
-            langfuse_tracer.set_tags(["m4markets", "sales", "voice"])
+        # Initialize Langfuse tracer (optional - won't block agent if it fails)
+        try:
+            langfuse_tracer = VoiceCallTracer(call_id, current_lead_phone)
+            if langfuse_tracer.trace:
+                langfuse_tracer.set_metadata({
+                    "room_name": ctx.room.name,
+                    "voice": AGENT_VOICE,
+                    "speed": VOICE_SPEED,
+                    "agent_version": "v1.1.0"
+                })
+                langfuse_tracer.set_tags(["m4markets", "sales", "voice"])
+        except Exception as e:
+            logger.warning(f"⚠️ Langfuse initialization failed (continuing without it): {str(e)}")
+            langfuse_tracer = None
 
         # Wait for participant
         logger.info("Waiting for participant...")

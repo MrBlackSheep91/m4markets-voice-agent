@@ -58,18 +58,23 @@ class VoiceCallTracer:
         self.start_time = time.time()
 
         if langfuse:
-            # Create trace
-            self.trace = langfuse.trace(
-                name="voice_call",
-                user_id=user_phone,
-                session_id=call_id,
-                metadata={
-                    "call_type": "voice",
-                    "platform": "livekit",
-                    "agent": "m4markets-sales"
+            # Create trace using SDK v3 API
+            try:
+                trace_data = {
+                    "name": "voice_call",
+                    "userId": user_phone,
+                    "sessionId": call_id,
+                    "metadata": {
+                        "call_type": "voice",
+                        "platform": "livekit",
+                        "agent": "m4markets-sales"
+                    }
                 }
-            )
-            logger.info(f"📊 Langfuse trace started: {call_id}")
+                self.trace = langfuse.trace(**trace_data)
+                logger.info(f"📊 Langfuse trace started: {call_id}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to create Langfuse trace: {str(e)}")
+                self.trace = None
 
     def track_stt(self, audio_duration: float, text: str):
         """Track Speech-to-Text generation"""
