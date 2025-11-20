@@ -8,6 +8,7 @@ import yaml
 from pathlib import Path
 from typing import Dict, List, Optional
 import logging
+from livekit.agents import function_tool
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -87,6 +88,7 @@ class M4MarketsKnowledgeBase:
 
 
 # Function tools for LiveKit agent
+@function_tool
 async def query_m4markets_knowledge(query: str, category: Optional[str] = None) -> str:
     """
     Query M4Markets knowledge base for information
@@ -173,6 +175,7 @@ async def query_m4markets_knowledge(query: str, category: Optional[str] = None) 
         return f"No pude obtener información específica sobre '{query}'. ¿Podrías reformular la pregunta?"
 
 
+@function_tool
 async def get_account_comparison(account_types: List[str] = None) -> str:
     """
     Compare different M4Markets account types
@@ -201,6 +204,7 @@ async def get_account_comparison(account_types: List[str] = None) -> str:
     return comparison
 
 
+@function_tool
 async def get_regulation_info(region: Optional[str] = None) -> str:
     """
     Get regulatory information for M4Markets

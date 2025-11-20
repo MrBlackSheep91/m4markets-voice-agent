@@ -5,10 +5,12 @@ Provides trading-related utilities and information
 
 from typing import Dict, Optional, List
 import logging
+from livekit.agents import function_tool
 
 logger = logging.getLogger(__name__)
 
 
+@function_tool
 async def recommend_account_type(
     capital: int,
     experience: str,
@@ -118,6 +120,7 @@ def _match_experience(experience: str, account: str) -> str:
     return f"Esta cuenta puede requerir más/menos experiencia que tu nivel actual ({experience})."
 
 
+@function_tool
 async def calculate_trading_costs(
     account_type: str,
     instrument: str = "EURUSD",
@@ -191,6 +194,7 @@ def _cost_recommendation(account_type: str, trades_per_month: int) -> str:
         return "✓ Tu selección de cuenta es adecuada para tu volumen de trading."
 
 
+@function_tool
 async def explain_forex_concept(concept: str) -> str:
     """
     Explain forex/trading concepts in simple Spanish
@@ -313,6 +317,7 @@ async def explain_forex_concept(concept: str) -> str:
     """
 
 
+@function_tool
 async def get_market_hours_info(market: str = "forex") -> str:
     """
     Get information about market trading hours

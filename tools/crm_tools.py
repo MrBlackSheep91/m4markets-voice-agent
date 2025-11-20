@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 from typing import Dict, Optional, List
 import logging
+from livekit.agents import function_tool
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ async def get_db_connection():
     return await asyncpg.connect(DB_URL)
 
 
+@function_tool
 async def get_lead_history(phone: str) -> Dict:
     """
     Retrieve lead history from CRM
@@ -99,6 +101,7 @@ async def get_lead_history(phone: str) -> Dict:
         }
 
 
+@function_tool
 async def save_conversation_note(
     phone: str,
     note_type: str,
@@ -154,6 +157,7 @@ async def save_conversation_note(
         }
 
 
+@function_tool
 async def qualify_and_save_lead(
     phone: str,
     name: Optional[str] = None,
@@ -298,6 +302,7 @@ async def qualify_and_save_lead(
         }
 
 
+@function_tool
 async def schedule_callback(
     phone: str,
     preferred_time: str,
