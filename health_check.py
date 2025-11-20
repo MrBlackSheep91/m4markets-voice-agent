@@ -64,7 +64,7 @@ class HealthCheck:
     def check_livekit_deps(self):
         """Check LiveKit dependencies"""
         try:
-            import livekit
+            from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm, VoiceAssistant
             from livekit.plugins import openai, silero
             return True
         except ImportError as e:
