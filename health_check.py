@@ -8,6 +8,11 @@ import sys
 import asyncio
 from dotenv import load_dotenv
 
+# Set UTF-8 encoding for Windows compatibility
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+
 load_dotenv()
 
 class HealthCheck:
@@ -64,7 +69,7 @@ class HealthCheck:
     def check_livekit_deps(self):
         """Check LiveKit dependencies"""
         try:
-            from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm, VoiceAssistant
+            from livekit.agents import Agent, AgentSession, AutoSubscribe, JobContext, WorkerOptions, cli, function_tool
             from livekit.plugins import openai, silero
             return True
         except ImportError as e:

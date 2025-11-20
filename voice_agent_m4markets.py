@@ -8,7 +8,15 @@ import logging
 import os
 import sys
 from dotenv import load_dotenv
-from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm, VoiceAssistant
+from livekit.agents import (
+    Agent,
+    AgentSession,
+    AutoSubscribe,
+    JobContext,
+    WorkerOptions,
+    cli,
+    function_tool,
+)
 from livekit.plugins import openai, silero
 
 # Load environment variables
@@ -20,7 +28,6 @@ from utils.error_handler import (
     retry_with_backoff,
     safe_execute_async,
     ErrorRecovery,
-    protected_livekit_call
 )
 
 # Import tools
@@ -229,31 +236,12 @@ Basado en calificación, recomienda:
 - → Acción: Transferir a humano / Enviar link de registro
 
 **Para WARM leads** (score 40-69):
-- "Genial, veo que te interesa. ¿Qué te parece si agendo una llamada con un especialista para mañana o pasado? ¿Qué horario te viene mejor?"
+- "Genial, veo que te interesa. ¿Qué te parece si agendamos una llamada con un especialista para mañana o pasado? ¿Qué horario te viene bien?"
 - → Acción: `schedule_callback(phone, preferred_time, notes)`
 
 **Para COLD leads** (score <40):
 - "Entiendo, no hay apuro. Te voy a mandar por WhatsApp info sobre las cuentas y algunos materiales educativos. Cuando estés listo, nos contactás. ¿Te parece?"
 - → Acción: Marcar para seguimiento por WhatsApp
-
-## Herramientas Disponibles
-
-### Conocimiento
-- `query_m4markets_knowledge(query, category)` - Consulta Second Brain
-- `get_account_comparison()` - Compara tipos de cuenta
-- `get_regulation_info(region)` - Info regulatoria
-- `explain_forex_concept(concept)` - Explica conceptos forex
-- `get_market_hours_info()` - Horarios de mercado
-
-### CRM
-- `get_lead_history(phone)` - Historial del prospecto
-- `save_conversation_note(phone, note_type, content)` - Guarda notas
-- `qualify_and_save_lead(...)` - Califica y guarda lead
-- `schedule_callback(phone, preferred_time, notes)` - Agenda callback
-
-### Forex
-- `recommend_account_type(capital, experience, trading_style)` - Recomienda cuenta
-- `calculate_trading_costs(account_type, trades_per_month)` - Calcula costos
 
 ## Reglas de Conversación
 
@@ -276,202 +264,143 @@ Basado en calificación, recomienda:
 - **SÍ** recomienda empezar con cuenta demo si es principiante total
 - **SÍ** sé transparente sobre costos y riesgos
 
-## Ejemplo de Flujo Completo
-
-**[Greeting]**
-"Hola, soy el asistente de M4Markets. ¿Con quién tengo el gusto?"
-
-**[Situation]**
-"Perfecto, Juan. Antes de nada, ¿actualmente operás en Forex o es algo nuevo para vos?"
-
-**[Problem - si opera]**
-"Entiendo. ¿Y qué broker usás hoy? ¿Cómo es tu experiencia con ellos, qué te gusta y qué no?"
-
-**[Problem - si no opera]**
-"Ah perfecto, estás explorando. ¿Qué te llamó la atención del trading? ¿Qué te gustaría lograr?"
-
-**[Implication]**
-"Claro, los spreads altos son un tema. ¿Tenés idea de cuánto perdés aproximadamente en costos por mes?"
-
-**[Need-Payoff]**
-"Exacto, son números importantes. ¿Qué harías con ese dinero si pudieras ahorrarlo operando con spreads más bajos?"
-
-**[Qualification]**
-"Tiene todo el sentido. Para recomendarte la mejor cuenta, ¿cuánto capital tenés disponible para operar más o menos?"
-
-**[Presentation]**
-"Perfecto, con $3000 y tu experiencia intermedia, te recomendaría nuestra cuenta Raw Spreads: spreads desde 0.0 pips, comisión baja, y vas a ahorrar muchísimo vs. lo que pagás ahora."
-
-**[Objection Handling - si surge]**
-"Entiendo tu duda sobre la regulación. M4Markets está regulado por CySEC en Europa, DFSA en Dubai, y los fondos están segregados. ¿Querés que te envíe la documentación oficial?"
-
-**[Close - HOT lead]**
-"Genial. Te voy a conectar ahora con Martín, uno de nuestros especialistas, que te va a ayudar a abrir la cuenta en 10 minutos. ¿Dale?"
-
-**[Close - WARM lead]**
-"Dale, perfecto. ¿Te parece si agenda mos una llamada con un especialista para mañana a la tarde? ¿Qué horario te viene bien?"
-
 ---
 
 **IMPORTANTE**: Usa las herramientas frecuentemente durante la conversación, no solo al final. Guarda notas en tiempo real.
 """
 
 
-class M4MarketsVoiceAgent:
-    """M4Markets Voice Agent using LiveKit"""
+# Global variable to track current lead phone
+current_lead_phone = None
 
-    def __init__(self):
-        self.current_lead_phone = None
-        self.conversation_stage = "greeting"
 
-    @staticmethod
-    def create_function_context() -> llm.FunctionContext:
-        """Create function context with all available tools"""
-        fnc_ctx = llm.FunctionContext()
+async def entrypoint(ctx: JobContext):
+    """
+    Main entrypoint for LiveKit agent with robust error handling
+    """
+    global current_lead_phone
+    call_id = f"call_{ctx.room.name}"
+    start_time = asyncio.get_event_loop().time()
+    outcome = "unknown"
 
-        # Knowledge tools
-        fnc_ctx.ai_callable()(query_m4markets_knowledge)
-        fnc_ctx.ai_callable()(get_account_comparison)
-        fnc_ctx.ai_callable()(get_regulation_info)
-        fnc_ctx.ai_callable()(explain_forex_concept)
-        fnc_ctx.ai_callable()(get_market_hours_info)
+    try:
+        logger.info(f"🚀 Starting voice agent for room: {ctx.room.name}")
 
-        # CRM tools
-        fnc_ctx.ai_callable()(get_lead_history)
-        fnc_ctx.ai_callable()(save_conversation_note)
-        fnc_ctx.ai_callable()(qualify_and_save_lead)
-        fnc_ctx.ai_callable()(schedule_callback)
+        # Validate environment before starting
+        validate_environment()
 
-        # Forex tools
-        fnc_ctx.ai_callable()(recommend_account_type)
-        fnc_ctx.ai_callable()(calculate_trading_costs)
+        # Connect to room with retry
+        logger.info(f"Connecting to room: {ctx.room.name}")
 
-        return fnc_ctx
+        @retry_with_backoff(max_retries=3, initial_delay=2.0)
+        async def connect_to_room():
+            await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
-    async def entrypoint(self, ctx: JobContext):
-        """
-        Main entrypoint for LiveKit agent with robust error handling
-        """
-        call_id = f"call_{ctx.room.name}_{asyncio.current_task().get_name()}"
-        start_time = asyncio.get_event_loop().time()
+        await connect_to_room()
+        logger.info("✅ Successfully connected to LiveKit room")
 
-        try:
-            logger.info(f"🚀 Starting voice agent for room: {ctx.room.name}")
-
-            # Validate environment before starting
-            validate_environment()
-
-            # Initialize chat context
-            initial_ctx = llm.ChatContext().append(
-                role="system",
-                text=M4MARKETS_INSTRUCTIONS
-            )
-
-            # Connect to room with retry
-            logger.info(f"Connecting to room: {ctx.room.name}")
-
-            @retry_with_backoff(max_retries=3, initial_delay=2.0)
-            async def connect_to_room():
-                await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
-
-            await connect_to_room()
-            logger.info("✅ Successfully connected to LiveKit room")
-
-            # Create voice assistant
+        # Extract phone number from room metadata
+        if hasattr(ctx.room, 'metadata') and ctx.room.metadata:
             try:
-                assistant = VoiceAssistant(
-                    vad=silero.VAD.load(),
-                    stt=openai.STT(),
-                    llm=openai.LLM(model="gpt-4o-mini"),  # or gpt-4o-realtime-preview for voice
-                    tts=openai.TTS(voice=AGENT_VOICE),
-                    chat_ctx=initial_ctx,
-                    fnc_ctx=self.create_function_context(),
-                )
-                logger.info("✅ Voice assistant created successfully")
-            except Exception as e:
-                logger.error(f"Failed to create voice assistant: {str(e)}")
-                raise
-
-            # Start assistant
-            assistant.start(ctx.room)
-            logger.info("✅ Voice assistant started")
-
-            # Wait for participant to publish audio
-            logger.info("Waiting for participant...")
-            participant = await asyncio.wait_for(
-                ctx.wait_for_participant(),
-                timeout=300  # 5 minute timeout
-            )
-            logger.info(f"✅ Participant joined: {participant.identity}")
-
-            # Extract phone number from room metadata
-            if hasattr(ctx.room, 'metadata') and ctx.room.metadata:
-                phone = await safe_execute_async(
-                    self._extract_phone_from_metadata,
-                    ctx.room.metadata,
-                    default_return=None,
-                    error_message="Failed to extract phone from metadata"
-                )
+                import json
+                metadata = json.loads(ctx.room.metadata)
+                phone = metadata.get('phone') or metadata.get('lead_phone')
                 if phone:
-                    self.current_lead_phone = phone
+                    current_lead_phone = phone
                     log_call_started(logger, call_id, phone)
+            except Exception as e:
+                logger.warning(f"Failed to extract phone from metadata: {str(e)}")
 
-            # Greeting
-            greeting = "¡Hola! Soy el asistente virtual de M4Markets. ¿Con quién tengo el gusto de hablar?"
-            await assistant.say(greeting, allow_interruptions=True)
-            logger.info(f"Greeted participant with: {greeting}")
+        # Wait for participant
+        logger.info("Waiting for participant...")
+        participant = await asyncio.wait_for(
+            ctx.wait_for_participant(),
+            timeout=300  # 5 minute timeout
+        )
+        logger.info(f"✅ Participant joined: {participant.identity}")
 
-            # Keep agent alive until disconnect
-            logger.info("Agent is now active and handling conversation")
+        # Create Agent with instructions and tools
+        agent = Agent(
+            instructions=M4MARKETS_INSTRUCTIONS,
+            tools=[
+                # Knowledge tools
+                query_m4markets_knowledge,
+                get_account_comparison,
+                get_regulation_info,
+                explain_forex_concept,
+                get_market_hours_info,
+                # CRM tools
+                get_lead_history,
+                save_conversation_note,
+                qualify_and_save_lead,
+                schedule_callback,
+                # Forex tools
+                recommend_account_type,
+                calculate_trading_costs,
+            ],
+        )
 
-        except asyncio.TimeoutError:
-            logger.error("⏱️ Timeout waiting for participant to join")
-            log_error_with_context(
+        # Create AgentSession with STT, LLM, TTS, VAD
+        session = AgentSession(
+            vad=silero.VAD.load(),
+            stt=openai.STT(),
+            llm=openai.LLM(model="gpt-4o-mini"),
+            tts=openai.TTS(voice=AGENT_VOICE),
+        )
+
+        logger.info("✅ Agent and Session created successfully")
+
+        # Start session
+        await session.start(agent=agent, room=ctx.room)
+        logger.info("✅ Agent session started")
+
+        # Generate greeting
+        greeting_instructions = "Saluda al usuario en español (LATAM) presentándote como el asistente virtual de M4Markets y pregunta su nombre."
+        await session.generate_reply(instructions=greeting_instructions)
+        logger.info("✅ Greeting sent to participant")
+
+        # Agent is now active and will handle the conversation automatically
+        logger.info("🎙️ Agent is active and handling conversation")
+        outcome = "completed"
+
+    except asyncio.TimeoutError:
+        logger.error("⏱️ Timeout waiting for participant to join")
+        outcome = "timeout"
+        log_error_with_context(
+            logger,
+            Exception("Participant join timeout"),
+            call_id=call_id
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Fatal error in voice agent: {str(e)}", exc_info=True)
+        outcome = "error"
+        log_error_with_context(logger, e, call_id=call_id)
+
+        # Attempt graceful shutdown
+        try:
+            if hasattr(ctx, 'room') and ctx.room:
+                logger.info("Attempting graceful disconnect...")
+                await ctx.room.disconnect()
+        except Exception as disconnect_error:
+            logger.error(f"Error during graceful disconnect: {str(disconnect_error)}")
+
+        # Re-raise for upper-level handling
+        raise
+
+    finally:
+        # Log call completion
+        duration = asyncio.get_event_loop().time() - start_time
+        if current_lead_phone:
+            log_call_ended(
                 logger,
-                Exception("Participant join timeout"),
-                call_id=call_id
+                call_id,
+                current_lead_phone,
+                duration,
+                outcome
             )
-
-        except Exception as e:
-            logger.error(f"❌ Fatal error in voice agent: {str(e)}", exc_info=True)
-            log_error_with_context(logger, e, call_id=call_id)
-
-            # Attempt graceful shutdown
-            try:
-                if hasattr(ctx, 'room') and ctx.room:
-                    logger.info("Attempting graceful disconnect...")
-                    await ctx.room.disconnect()
-            except Exception as disconnect_error:
-                logger.error(f"Error during graceful disconnect: {str(disconnect_error)}")
-
-            # Re-raise for upper-level handling
-            raise
-
-        finally:
-            # Log call completion
-            duration = asyncio.get_event_loop().time() - start_time
-            if self.current_lead_phone:
-                log_call_ended(
-                    logger,
-                    call_id,
-                    self.current_lead_phone,
-                    duration,
-                    outcome="completed" if not hasattr(sys.exc_info()[1], '__class__') else "error"
-                )
-            logger.info(f"✨ Call completed. Duration: {duration:.2f}s")
-
-    def _extract_phone_from_metadata(self, metadata_str: str) -> str:
-        """Extract phone number from room metadata JSON"""
-        import json
-        metadata = json.loads(metadata_str)
-        return metadata.get('phone') or metadata.get('lead_phone')
-
-
-async def main(worker_options: WorkerOptions):
-    """Main function to start the agent"""
-    agent = M4MarketsVoiceAgent()
-    cli.run_app(WorkerOptions(entrypoint_fnc=agent.entrypoint))
+        logger.info(f"✨ Call completed. Duration: {duration:.2f}s | Outcome: {outcome}")
 
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=M4MarketsVoiceAgent().entrypoint))
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
